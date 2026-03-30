@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Prueba de Criterio Situacional — AYAX</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #ffffff; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        ::selection { background: #1a1a1a; color: #fff; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #1a1a1a !important;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ============================================================
+// CONFIGURATION — Scenarios loaded from JSON structure
+// For production: load from external JSON file
+// ============================================================
+const CONFIG = {
+  role: "Analista de Marketing",
+  company: "AYAX",
+  timerSeconds: 25 * 60,
+  sheetEndpoint: "https://script.google.com/macros/s/AKfycbwCfQTZ5V8IzynpFha5CGUl9ahFeoG7vSlRy2ixzqXNK4H1IlY4ZtmUHLhQdCiRKaG4yQ/exec",
+  sourceOptions: ["LinkedIn", "Buscojobs", "Personal AYAX", "Otro"],
+  scenarios: [
+    {
+      id: "E1",
+      title: "Auto de exhibición sin confirmación final",
+      case: "Faltan 48 horas para un lanzamiento y detectás que todavía no está confirmada la llegada de uno de los autos que tiene que exhibirse en el evento. La agencia te dice que \"está encaminado\" y tu jefa está ocupada con varios frentes.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Buscás una confirmación directa con quien esté coordinando el traslado para entender en qué estado real está la entrega, qué tan firme es el compromiso y cuánto margen real queda, porque te parece que a 48 horas del evento lo más valioso es convertir una situación difusa en una base concreta para decidir." },
+        { letter: "B", text: "Le pedís a la agencia una confirmación formal con responsable, horario y estado del traslado para hoy, porque te parece importante ordenar el tema dentro del circuito que ya lo está llevando y dejar una trazabilidad clara si después hace falta intervenir o escalar." },
+        { letter: "C", text: "Dejás armada una alternativa concreta por si el auto no llega — otro vehículo, un ajuste en la exhibición o una versión más simple del montaje — porque te parece que con tan poco margen lo que más protege al evento es que exista una salida viable, aunque eso implique resignar parte del impacto original del lanzamiento." },
+        { letter: "D", text: "Le mandás a tu jefa un mensaje breve con el riesgo que estás viendo, tu lectura de la situación y una recomendación de cómo encararlo, porque te parece importante que tenga contexto sobre un frente visible antes de que el tema escale sin que ella lo haya visto, aunque eso implique sumar una instancia de alineación antes de mover algo por tu cuenta." }
+      ],
+      followUp: null
+    },
+    {
+      id: "E2",
+      title: "Pedido urgente a agencia con definiciones incompletas",
+      case: "Comercial te pide una pieza para publicar ese mismo día en redes, para apoyar una acción puntual con un modelo que ya viene trabajando la marca. La urgencia parece real, pero el pedido llega con poca claridad sobre a qué público se quiere hablar y qué mensaje se quiere priorizar.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Definís un enfoque de público y mensaje en base a lo que conocés del modelo, del mercado y de campañas anteriores, y le mandás el pedido armado a la agencia para no perder el día, aunque eso implique cerrar vos una definición que Comercial todavía no bajó del todo." },
+        { letter: "B", text: "Bajás con Comercial una definición mínima de público y mensaje, y con eso le mandás una primera versión a la agencia para avanzar hoy, porque te parece que una base breve pero compartida te permite mover el pedido sin arrancar sobre una lectura totalmente propia." },
+        { letter: "C", text: "Le decís a Comercial que necesitás que baje mejor el pedido antes de moverlo, porque te parece que si el mensaje no está mínimamente claro podés activar algo débil y perder más tiempo corrigiéndolo después, aunque eso implique no salir hoy." },
+        { letter: "D", text: "Le planteás a tu jefa los vacíos del pedido con tu lectura de cómo encararlo, porque te parece que una pieza con mensaje ambiguo puede afectar la comunicación de la marca y preferís alinear criterio antes de mandar algo a la agencia, aunque eso agregue una instancia más en un pedido que viene con urgencia." }
+      ],
+      followUp: {
+        format: "A",
+        question: "¿Qué riesgo estás aceptando intencionalmente con la opción que elegiste?"
+      }
+    },
+    {
+      id: "E3",
+      title: "Caída de leads sin diagnóstico claro",
+      case: "En las últimas campañas de Instagram para vehículos nuevos ves buen alcance y clics, pero los leads que llegan al equipo comercial son cada vez menos calificados y las ventas que finalmente se cierran vienen bajando. Nadie te pidió una lectura todavía.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Elegís la campaña con peor conversión, hacés un ajuste acotado en a quién le está llegando o cómo se está mostrando, y dejás correr unos días para tener un dato real antes de armar una lectura más amplia." },
+        { letter: "B", text: "Armás una lectura rápida con las causas más probables y una acción concreta para probar, y se la llevás a tu jefa." },
+        { letter: "C", text: "Bajás con el equipo comercial para entender qué están viendo del lado del salón, porque si la caída en calidad de leads no coincide con lo que ellos perciben, la causa puede estar en otro lugar." },
+        { letter: "D", text: "Separás los datos por campaña, producto y público para identificar exactamente dónde se pierde la conversión, porque te parece que la precisión del diagnóstico es lo que más determina la calidad de la intervención." }
+      ],
+      followUp: {
+        format: "B",
+        question: "¿Por qué priorizaste tu primera opción sobre la segunda?"
+      }
+    },
+    {
+      id: "E4",
+      title: "Cotización única para un evento con presupuesto ajustado",
+      case: "Necesitás avanzar con la ambientación y el montaje de un evento de marca que es en cinco días. Llegó una sola cotización de un proveedor que ya trabajó con AYAX y conoce la marca. El monto supera el presupuesto del área. Tu jefa va a estar disponible más tarde para ver la propuesta.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Le pasás a tu jefa la cotización con una lectura clara de por qué este proveedor puede seguir conviniendo a pesar del precio, porque te parece importante que tenga contexto suficiente para decidir rápido sin perder de vista el valor de trabajar con alguien que ya conoce la marca, aunque eso no resuelva todavía el desajuste de presupuesto." },
+        { letter: "B", text: "Buscás una referencia rápida de mercado o una segunda mirada de alguien con criterio en producción para validar si el precio está realmente fuera de escala, porque te parece que antes de recortar o negociar conviene tener un marco mínimo que te ayude a decidir mejor, aunque eso te consuma parte del tiempo que queda para resolver." },
+        { letter: "C", text: "Negociás directamente con el proveedor para intentar mejorar condiciones sin resignar el enfoque original del evento, porque te parece que con tan poco margen lo más valioso es trabajar sobre una opción que ya entiende la marca y puede salir, aunque dependas de que el proveedor esté dispuesto a ceder." },
+        { letter: "D", text: "Le proponés al proveedor una versión más acotada de la producción que preserve lo esencial del evento y deje afuera lo menos crítico, porque te parece que volver viable la propuesta con el presupuesto disponible es más útil que quedar trabado entre una cotización que no entra y una decisión que no avanza." }
+      ],
+      followUp: null
+    },
+    {
+      id: "E5",
+      title: "Pieza de agencia que no termina de alinear",
+      case: "La agencia entregó las piezas gráficas para una campaña de redes que sale esta semana, pero al revisarlas ves que el tono y el enfoque visual no terminan de alinearse con lo que se quería comunicar.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Ajustás internamente lo que puedas y sacás la campaña en fecha, porque te parece que con la salida tan cerca es más importante no frenar la publicación que abrir ahora una ronda de correcciones que puede desordenar todo, aunque eso implique aceptar un nivel que no termina de convencerte." },
+        { letter: "B", text: "Le marcás a la agencia lo que no está alineado y le pedís una corrección antes de que salga la campaña, porque te parece que si esta entrega sale así dejás pasar un estándar que después va a ser más difícil exigir." },
+        { letter: "C", text: "Le proponés a la agencia una conversación breve para alinear mejor el criterio de tono y enfoque antes de cerrar la pieza, porque te parece que resolver bien esta entrega también implica corregir el criterio con el que se la está construyendo, aunque eso te agregue una instancia más en un plazo corto." },
+        { letter: "D", text: "Antes de devolver nada, revisás si tu bajada fue lo suficientemente clara en tono y enfoque, porque te parece que si el desajuste viene de una indicación ambigua conviene detectarlo antes de exigir una corrección, aunque eso te haga demorar un poco más la devolución y no garantice llegar igual a tiempo." }
+      ],
+      followUp: null
+    },
+    {
+      id: "E6",
+      title: "Dato vs. percepción del equipo comercial",
+      case: "Varios integrantes del equipo comercial sostienen que cierto formato de campaña \"siempre genera interés\" y proponen aumentar la inversión en ese tipo de piezas. Sin embargo, al revisar los datos, observás que, aunque ese formato logra buen alcance e interacción, su conversión a leads calificados es sensiblemente menor que la de otros formatos en los que hoy se invierte menos. Nadie te pidió todavía una lectura sobre el tema.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Le mostrás al equipo comercial tanto los datos de interacción como los de conversión, señalando que lo que genera visibilidad no necesariamente genera negocio, y proponés revisar si tiene sentido seguir empujando inversión en ese formato, porque te parece que cuando el dato contradice una percepción instalada conviene poner esa tensión sobre la mesa antes de que se convierta en decisión." },
+        { letter: "B", text: "Armás un análisis comparando el rendimiento por formato y, si podés, lo cruzás con señales más cercanas al resultado comercial, y se lo llevás a tu jefa con una recomendación concreta, porque te parece que una decisión de inversión gana fuerza cuando la discrepancia entre percepción y dato ya está mejor procesada, aunque eso implique llegar más tarde a una discusión que ya está empujando el equipo." },
+        { letter: "C", text: "Antes de tomar posición, desagregás los datos por campaña y por público para verificar si existe algún contexto en el que ese formato sí convierta bien, porque te parece que una lectura agregada puede estar ocultando un matiz relevante, aunque eso implique demorarte más antes de intervenir." },
+        { letter: "D", text: "Proponés ordenar esta discusión con un criterio común de evaluación que compare los formatos no solo por visibilidad sino también por calidad de resultado, y te ofrecés a armarlo con los datos que ya existen, porque te parece que resolver bien esta tensión también implica evitar que vuelva a repetirse igual el mes siguiente, aunque eso no cierre del todo la discusión actual." }
+      ],
+      followUp: {
+        format: "C",
+        question: "¿Qué información adicional podría hacerte cambiar de decisión?"
+      }
+    },
+    {
+      id: "E7",
+      title: "El sistema que no funciona",
+      case: "Hace semanas que el CRM pierde datos de leads y los reportes que genera no coinciden con lo que el equipo comercial te reporta. Armar información confiable te lleva el doble de tiempo porque tenés que cruzar todo a mano. Nadie te pidió que resuelvas esto.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Mejorás tu proceso de cruce manual para hacerlo más rápido y menos propenso a errores, porque tu prioridad es que el área siga recibiendo información confiable sin que el problema del sistema te saque foco de las responsabilidades de tu área." },
+        { letter: "B", text: "Ordenás las inconsistencias que estás viendo, el impacto que están teniendo y una forma posible de empezar a corregirlas, y se lo llevás a tu jefa para que el problema pueda encauzarse con más claridad y criterio, aunque eso agregue un paso antes de moverlo." },
+        { letter: "C", text: "Empezás a registrar cada inconsistencia que encontrás y el tiempo extra que te lleva corregirla, porque te parece que cuando levantes el tema vas a necesitar evidencia concreta del costo para que se le dé la prioridad que merece, aunque eso implique seguir absorbiendo el problema mientras construís esa base." },
+        { letter: "D", text: "Le avisás a tu jefa del problema y le proponés revisarlo con el área de Sistemas, porque te parece que seguir absorbiendo el costo sin moverlo es peor que activar la conversación ahora, aunque eso implique empezar a empujarlo antes de tener completamente ordenado el patrón de fallas." }
+      ],
+      followUp: null
+    },
+    {
+      id: "E8",
+      title: "Agenda propia vs. demandas del día",
+      case: "Tenías bloqueado tiempo para avanzar con un análisis de rendimiento de campañas que venís postergando hace dos semanas. Pero a primera hora te llegan tres pedidos: la agencia necesita tu aprobación de unas piezas para mañana, Comercial te pide un dato para una reunión del mediodía, y Administración necesita que confirmes un presupuesto antes del cierre del día.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Atendés los tres pedidos primero porque involucran a otras personas que están esperando, y retomás el análisis cuando se libere el resto del día." },
+        { letter: "B", text: "Evaluás cuál de los tres pedidos realmente no puede esperar y resolvés ese primero, protegiendo un bloque para el análisis que ya lleva demasiado tiempo postergado." },
+        { letter: "C", text: "Resolvés los tres pedidos rápido dándole a cada uno lo mínimo que necesita — la aprobación, el dato, la confirmación — para despejar la mesa y poder concentrarte en el análisis con la cabeza más libre." },
+        { letter: "D", text: "Les avisás a los tres que tenés un compromiso pendiente que no podés seguir postergando y acordás con cada uno un plazo concreto según lo que puede esperar y lo que no, porque te parece mejor ordenar expectativas ahora que comprometerte con todo y no cumplir." }
+      ],
+      followUp: null
+    },
+    {
+      id: "E9",
+      title: "Crisis de reputación en redes",
+      case: "Un cliente publica un comentario muy negativo en el Instagram de AYAX sobre una experiencia de postventa. El tono es duro, menciona detalles internos que hacen pensar que el caso es real, y en pocas horas ya tiene varias respuestas y compartidos. Tu jefa todavía no lo vio.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Respondés públicamente con un mensaje breve y empático, dejando claro que la marca ya está revisando lo ocurrido y que van a contactarlo por privado, porque te parece importante dar una señal rápida de presencia antes de que el silencio agrave el daño." },
+        { letter: "B", text: "Le pasás el caso a tu jefa con tu lectura del riesgo y una recomendación de cómo encararlo, porque te parece que en una situación con esta visibilidad conviene alinear rápido una respuesta antes de fijar posición en nombre de la marca." },
+        { letter: "C", text: "Contactás al área de Postventa para entender bien qué pasó y qué margen real hay para resolverlo, porque te parece que antes de responder públicamente necesitás una base mínima de hechos, aunque eso implique no dar una señal inmediata mientras terminás de entender el caso." },
+        { letter: "D", text: "Le escribís al cliente por mensaje privado para entender mejor su situación y abrir una vía de resolución, porque te parece que bajar primero la intensidad con la persona puede ayudar a contener el conflicto mientras terminás de evaluar cómo conviene responder en público." }
+      ],
+      followUp: {
+        format: "C",
+        question: "¿Qué información adicional podría hacerte cambiar de decisión?"
+      }
+    },
+    {
+      id: "E10",
+      title: "La herramienta que nadie pidió",
+      case: "Navegando por un sitio de herramientas digitales para el sector automotriz, te cruzás con un sistema de respuesta automática para consultas de postventa en sitios web que podría ayudar a responder más rápido, ordenar mejor las consultas y recuperar oportunidades que hoy se enfrían. Tiene costo moderado y requiere integración técnica. Nadie te pidió que investigues esto.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Armás un resumen breve con qué es, qué problema podría resolver, una estimación del costo y por qué te parece que vale la pena mirarlo, y se lo presentás a tu jefa como una propuesta concreta para evaluar si tiene sentido avanzar, aunque todavía tengas una visión preliminar sobre la implementación real." },
+        { letter: "B", text: "Lo dejás anotado junto con una breve lectura del problema que podría resolver, para traerlo cuando el área esté definiendo prioridades, porque te parece que una herramienta nueva se evalúa mejor cuando se la puede comparar con otras necesidades reales y no como una idea aislada, aunque eso implique no mover ahora una oportunidad que detectaste vos." },
+        { letter: "C", text: "Le compartís a tu jefa el hallazgo junto con una lectura breve de por qué podría ser relevante para el área, porque te parece que antes de bajar más tiempo conviene validar si este tipo de oportunidad hoy tiene lugar real entre las prioridades que ya están en juego, aunque eso todavía no alcance para decidir si vale la pena avanzar." },
+        { letter: "D", text: "Contactás al proveedor para pedir información más detallada o una demostración, porque te parece que una propuesta gana mucha fuerza cuando viene respaldada por datos de primera mano sobre implementación, alcance y costo real, aunque eso implique invertir tiempo antes de saber si internamente hoy hay interés en moverlo." }
+      ],
+      followUp: {
+        format: "A",
+        question: "¿Qué riesgo estás aceptando intencionalmente con la opción que elegiste?"
+      }
+    },
+    {
+      id: "E11",
+      title: "Personalizar vs. estandarizar",
+      case: "Tu jefa te pide que armes un kit de materiales para que los vendedores del salón usen en sus contactos con clientes: piezas de WhatsApp, catálogos digitales y argumentos de venta. Algunos vendedores te dicen que cada cliente es distinto y que un material genérico no les sirve; otros te comentan que tener algo armado les ahorraría mucho tiempo.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Armás el kit con un enfoque uniforme que cubra los casos más comunes, porque te parece que tener una base sólida y usable ya es más valioso que demorar la entrega intentando cubrir todas las diferencias." },
+        { letter: "B", text: "Antes de armarlo, te tomás un tiempo para entender mejor cómo trabajan los vendedores y qué tipo de situaciones enfrentan, porque te parece que diseñar sin esa lectura puede terminar en algo prolijo pero poco usado, aunque eso implique demorar la entrega inicial." },
+        { letter: "C", text: "Armás dos o tres versiones del kit según los perfiles de cliente más frecuentes que identificás, porque te parece que resolver desde el diseño las diferencias más repetidas le ahorra al vendedor tener que adaptar sobre la marcha." },
+        { letter: "D", text: "Armás el kit con una estructura base y dejás puntos editables claros para que cada vendedor adapte según el cliente o la situación, porque te parece que una misma base puede servir mejor si deja margen de ajuste, aunque eso implique depender más del criterio de cada uno y asumir cierta variación en cómo se use." }
+      ],
+      followUp: {
+        format: "B",
+        question: "¿Por qué priorizaste tu primera opción sobre la segunda?"
+      }
+    },
+    {
+      id: "E12",
+      title: "Decisión sin manual",
+      case: "Tu jefa está de viaje por dos días. Un medio te escribe para confirmar si AYAX participa como sponsor en un evento del sector la semana que viene. El costo es bajo y entra en presupuesto, pero la empresa nunca participó en ese evento y no hay un criterio claro sobre cómo decidir este tipo de oportunidades.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Le decís al medio que necesitás unos días para confirmarlo, porque sin un criterio claro sobre participación en eventos nuevos preferís no comprometer a la marca hasta poder alinearlo con tu jefa, aunque eso implique poder perder la oportunidad." },
+        { letter: "B", text: "Confirmás la participación directamente, porque el costo es bajo, entra en presupuesto y te parece que en una oportunidad acotada de visibilidad es preferible mover con criterio antes que dejarla caer por falta de definición, aunque después tengas que explicar por qué avanzaste sin alineación previa." },
+        { letter: "C", text: "Buscás una referencia rápida con alguien de Comercial o del equipo que conozca el evento o el sector, y con eso definís si vale la pena avanzar o no mientras tu jefa está de viaje, porque te parece que apoyarte en una lectura contextual antes de comprometer a la marca te da una base más sólida para decidir con criterio propio." },
+        { letter: "D", text: "Le mandás a tu jefa un mensaje con el contexto, tu lectura de por qué podría valer la pena y una recomendación, porque te parece que en una oportunidad nueva de visibilidad conviene alinear criterio antes de comprometer a la marca, aunque eso te deje dependiendo de su respuesta." }
+      ],
+      followUp: null
+    },
+    {
+      id: "E13",
+      title: "Corto plazo vs. largo plazo",
+      case: "Se acerca la revisión trimestral con la dirección y el área todavía no tiene resultados nuevos fuertes para mostrar. Vos venís trabajando en un rediseño del enfoque de contenido que apunta a mejorar la calidad de los leads a mediano plazo, pero que todavía no genera números visibles.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Sumás algunas acciones de impacto rápido que puedan mostrar movimiento en la revisión, porque te parece que llegar con algo visible es mejor que presentar solo un trabajo en curso que todavía no se refleja en los números, aunque eso implique desviar tiempo y foco del rediseño que venís empujando." },
+        { letter: "B", text: "Preparás una presentación que conecte el rediseño con el problema que los números muestran, explicando por qué el cambio de enfoque es la respuesta estratégica aunque los resultados todavía no sean visibles, porque te parece más valioso sostener el criterio del trabajo de fondo, aunque llegues a la revisión con menos resultados concretos para mostrar." },
+        { letter: "C", text: "Le planteás a tu jefa dónde está parado el rediseño, qué señales tiene sentido mostrar y qué todavía sería apresurado presentar como resultado, porque te parece importante llegar a la revisión con un encuadre claro y compartido sobre el avance real del trabajo, aunque eso no resuelva la falta de números nuevos para mostrar." },
+        { letter: "D", text: "Revisás los datos del período para buscar señales tempranas de que el rediseño ya está empezando a mover algo — aunque sea parcial — porque te parece que si hay evidencia incipiente, mostrarla es la forma más honesta de reflejar dónde está el área y hacia dónde va." }
+      ],
+      followUp: null
+    },
+    {
+      id: "E14",
+      title: "Dato vs. intuición del equipo",
+      case: "Estás armando la propuesta de distribución de presupuesto de campañas digitales del mes que viene. Los datos de los últimos tres meses muestran que las campañas en búsqueda generan leads más calificados a menor costo que las de redes, pero el equipo comercial te dice que los clientes que llegan por redes \"vienen más decididos\" y piden que se invierta más ahí. Tenés que mandar la propuesta a tu jefa hoy.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Armás la propuesta priorizando búsqueda sobre redes como sugieren los datos de conversión de los últimos tres meses, porque te parece que una decisión de inversión tiene que apoyarse en la evidencia disponible, aunque eso implique dejar afuera una percepción del equipo que podría estar captando algo del cierre final que todavía no estás viendo." },
+        { letter: "B", text: "Mantenés la distribución actual y le proponés a tu jefa instalar un marco de medición más completo que permita comparar las dos fuentes no solo por conversión sino también por calidad de cierre, porque te parece que resolver bien esta discusión también implica evitar que vuelva a repetirse igual el mes siguiente, aunque eso implique sostener un mes más una distribución que quizás no sea la mejor." },
+        { letter: "C", text: "Proponés mover una parte acotada del presupuesto hacia búsqueda como prueba de un mes, con métricas de cierre incluidas, porque te parece que un movimiento controlado te permite actuar sobre la señal que ya muestran los datos sin convertir todavía esa lectura en una apuesta total." },
+        { letter: "D", text: "Antes de cerrar la propuesta, cruzás los datos de leads con los de cierre real de ventas para ver si lo que dice Comercial tiene algún fundamento que los datos de conversión solos no capturan, porque te parece que una discrepancia consistente entre dato y percepción puede estar señalando una variable relevante que todavía no estás incorporando a la decisión, aunque eso te deje con menos margen para terminar la propuesta." }
+      ],
+      followUp: null
+    },
+    {
+      id: "E15",
+      title: "Lanzamiento con múltiples frentes abiertos",
+      case: "Faltan diez días para el lanzamiento de un modelo nuevo y tenés varios frentes abiertos al mismo tiempo: la agencia todavía no entregó las piezas finales de redes, el fotógrafo necesita confirmación del set para la producción de contenido, Comercial te pidió materiales de apoyo para los vendedores y el presupuesto de pauta todavía no está aprobado.",
+      question: "¿Qué hacés?",
+      options: [
+        { letter: "A", text: "Te enfocás en identificar cuál de los frentes tiene más riesgo de atrasar el lanzamiento y priorizás destrabarlo, porque te parece que con poco margen de tiempo lo que más protege al lanzamiento es asegurar que lo más crítico no se quede sin resolver." },
+        { letter: "B", text: "Armás un estado de situación ordenado con el avance real de cada frente, qué depende de quién y dónde están los riesgos, y se lo mandás a tu jefa con una lectura de cuáles necesitan intervención, porque te parece que frente a varios frentes abiertos una buena decisión depende primero de tener una foto clara y priorizada." },
+        { letter: "C", text: "Contactás a cada responsable para pedir un estado actualizado y plazos concretos, y con eso armás un cronograma de los próximos diez días con hitos claros por frente, porque te parece que sin esa visibilidad integrada es muy difícil saber si vas a llegar o no." },
+        { letter: "D", text: "Resolvés lo que podés resolver directamente — confirmás el set con el fotógrafo, le mandás a Comercial una primera versión de los materiales con lo que tenés — y le avisás a tu jefa dónde quedó cada frente, porque te parece que cada frente que cerrás es un frente menos que gestionar y eso le simplifica la foto a todos." }
+      ],
+      followUp: null
+    }
+  ]
+};
+
+// ============================================================
+// STYLES
+// ============================================================
+const font = "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+
+const S = {
+  app: {
+    fontFamily: font,
+    minHeight: "100vh",
+    background: "#ffffff",
+    color: "#1a1a1a",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: 0,
+    margin: 0,
+    lineHeight: 1.6,
+    WebkitFontSmoothing: "antialiased",
+  },
+  container: {
+    width: "100%",
+    maxWidth: 680,
+    padding: "0 24px",
+    boxSizing: "border-box",
+  },
+  logo: {
+    width: 120,
+    marginTop: 48,
+    marginBottom: 32,
+    opacity: 0.9,
+  },
+  h1: {
+    fontSize: 28,
+    fontWeight: 600,
+    letterSpacing: "-0.02em",
+    marginBottom: 8,
+    color: "#1a1a1a",
+  },
+  h2: {
+    fontSize: 20,
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+    marginBottom: 4,
+    color: "#1a1a1a",
+  },
+  subtitle: {
+    fontSize: 15,
+    color: "#888",
+    marginBottom: 32,
+    fontWeight: 400,
+  },
+  body: {
+    fontSize: 15,
+    lineHeight: 1.7,
+    color: "#333",
+    marginBottom: 16,
+  },
+  bodyStrong: {
+    fontSize: 15,
+    lineHeight: 1.7,
+    color: "#1a1a1a",
+    fontWeight: 600,
+  },
+  input: {
+    width: "100%",
+    padding: "14px 16px",
+    fontSize: 15,
+    fontFamily: font,
+    border: "1px solid #e0e0e0",
+    borderRadius: 10,
+    outline: "none",
+    transition: "border-color 0.2s",
+    boxSizing: "border-box",
+    marginBottom: 16,
+    background: "#fafafa",
+  },
+  select: {
+    width: "100%",
+    padding: "14px 16px",
+    fontSize: 15,
+    fontFamily: font,
+    border: "1px solid #e0e0e0",
+    borderRadius: 10,
+    outline: "none",
+    boxSizing: "border-box",
+    marginBottom: 16,
+    background: "#fafafa",
+    appearance: "none",
+    cursor: "pointer",
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: "#666",
+    marginBottom: 6,
+    display: "block",
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+  },
+  btn: {
+    padding: "14px 32px",
+    fontSize: 15,
+    fontWeight: 600,
+    fontFamily: font,
+    background: "#1a1a1a",
+    color: "#fff",
+    border: "none",
+    borderRadius: 10,
+    cursor: "pointer",
+    transition: "all 0.2s",
+    letterSpacing: "-0.01em",
+    width: "100%",
+    marginTop: 8,
+  },
+  btnDisabled: {
+    background: "#ccc",
+    cursor: "not-allowed",
+  },
+  timer: {
+    position: "fixed",
+    top: 20,
+    right: 24,
+    fontSize: 14,
+    fontWeight: 500,
+    fontFamily: "'DM Mono', monospace",
+    padding: "8px 14px",
+    borderRadius: 8,
+    background: "#f5f5f5",
+    color: "#666",
+    zIndex: 100,
+    transition: "all 0.3s",
+  },
+  timerRed: {
+    background: "#fef2f2",
+    color: "#dc2626",
+  },
+  progress: {
+    position: "fixed",
+    top: 20,
+    left: 24,
+    fontSize: 13,
+    fontWeight: 500,
+    color: "#999",
+    zIndex: 100,
+  },
+  scenarioCase: {
+    fontSize: 15,
+    lineHeight: 1.75,
+    color: "#333",
+    marginBottom: 24,
+    padding: "20px 24px",
+    background: "#fafafa",
+    borderRadius: 12,
+    border: "1px solid #f0f0f0",
+  },
+  option: {
+    position: "relative",
+    padding: "18px 20px 18px 20px",
+    marginBottom: 10,
+    borderRadius: 12,
+    border: "2px solid #e8e8e8",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    fontSize: 14.5,
+    lineHeight: 1.65,
+    color: "#444",
+    background: "#fff",
+  },
+  optionHover: {
+    borderColor: "#ccc",
+    background: "#fcfcfc",
+  },
+  optionFirst: {
+    borderColor: "#1a1a1a",
+    background: "#fafafa",
+  },
+  optionSecond: {
+    borderColor: "#888",
+    background: "#fcfcfc",
+  },
+  badge: {
+    position: "absolute",
+    top: -10,
+    left: -10,
+    width: 26,
+    height: 26,
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#fff",
+    zIndex: 2,
+  },
+  badgeFirst: {
+    background: "#1a1a1a",
+  },
+  badgeSecond: {
+    background: "#888",
+  },
+  instruction: {
+    fontSize: 13,
+    color: "#999",
+    marginBottom: 16,
+    fontWeight: 500,
+    textAlign: "center",
+    letterSpacing: "0.02em",
+  },
+  followUp: {
+    marginTop: 24,
+    padding: "20px 24px",
+    background: "#fafafa",
+    borderRadius: 12,
+    border: "1px solid #eee",
+    animation: "fadeIn 0.3s ease",
+  },
+  textarea: {
+    width: "100%",
+    padding: "14px 16px",
+    fontSize: 14.5,
+    fontFamily: font,
+    border: "1px solid #e0e0e0",
+    borderRadius: 10,
+    outline: "none",
+    boxSizing: "border-box",
+    marginTop: 12,
+    background: "#fff",
+    resize: "vertical",
+    minHeight: 80,
+    lineHeight: 1.6,
+  },
+  divider: {
+    height: 1,
+    background: "#f0f0f0",
+    margin: "32px 0",
+    border: "none",
+  },
+  overtimeMsg: {
+    fontSize: 12,
+    color: "#dc2626",
+    textAlign: "center",
+    marginTop: 4,
+    fontWeight: 500,
+  },
+  footer: {
+    textAlign: "center",
+    padding: "32px 0 48px",
+    fontSize: 13,
+    color: "#bbb",
+  }
+};
+
+// ============================================================
+// TIMER COMPONENT
+// ============================================================
+function Timer({ seconds, isRunning }) {
+  const isOvertime = seconds <= 0;
+  const absSeconds = Math.abs(seconds);
+  const mins = Math.floor(absSeconds / 60);
+  const secs = absSeconds % 60;
+  const display = `${isOvertime ? "+" : ""}${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+
+  return (
+    <div style={{ ...S.timer, ...(isOvertime ? S.timerRed : {}) }}>
+      {display}
+      {isOvertime && seconds <= -5 && (
+        <div style={S.overtimeMsg}>Tiempo sugerido terminado</div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// WELCOME SCREEN
+// ============================================================
+function WelcomeScreen({ onStart, role }) {
+  return (
+    <div style={S.container}>
+      <div style={{ textAlign: "center", marginTop: 48 }}>
+        <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: "0.12em", color: "#1a1a1a", marginBottom: 4, textTransform: "uppercase" }}>AYAX</div>
+        <div style={{ fontSize: 11, color: "#999", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 48 }}>Personas & Cultura</div>
+      </div>
+
+      <h1 style={{ ...S.h1, textAlign: "center", marginBottom: 4 }}>Prueba de Criterio Situacional</h1>
+      <p style={{ ...S.subtitle, textAlign: "center" }}>{role}</p>
+
+      <hr style={S.divider} />
+
+      <p style={{ ...S.h2, marginBottom: 20 }}>Antes de empezar</p>
+
+      <p style={S.body}>
+        Esta prueba te va a presentar 15 situaciones reales del día a día del puesto. En cada una vas a encontrar cuatro opciones que representan formas distintas de encarar el mismo problema.
+      </p>
+
+      <p style={S.body}>
+        <strong>No hay una respuesta universalmente mejor</strong> en cada escenario. Vas a notar que más de una opción puede parecer razonable, y eso es intencional: cada una representa una filosofía de trabajo distinta y legítima. De todos modos, sí existe una filosofía que nosotros valoramos más para este rol, pero es propia de esta empresa, este equipo y este momento. Otra empresa podría preferir una <strong>diferente</strong> para el mismo puesto.
+      </p>
+
+      <p style={S.body}>
+        Por eso te pedimos que elijas <strong>lo que genuinamente harías vos en la práctica</strong>, no lo que suene "mejor" en teoría. Tu forma real de pensar es exactamente lo que queremos ver, y es lo que vamos a estar esperando de vos si trabajamos juntos.
+      </p>
+
+      <p style={S.body}>
+        En cada escenario vas a elegir <strong>dos opciones</strong>:
+      </p>
+      <ul style={{ ...S.body, paddingLeft: 28, marginTop: -8, listStyleType: "disc" }}>
+        <li style={{ marginBottom: 4, paddingLeft: 4 }}>la que más te representa</li>
+        <li style={{ paddingLeft: 4 }}>y la segunda que más te representa</li>
+      </ul>
+      <p style={S.body}>
+        En algunos casos también te vamos a hacer una pregunta breve sobre tu razonamiento.
+      </p>
+
+      <p style={S.body}>
+        Sabemos que hoy es fácil pedirle a una herramienta que elija por vos. Pero lo único que puede hacer es elegir la que suena más profesional. No sabe qué filosofía valora este equipo ni qué es lo que harías vos. <strong>Tu mejor estrategia es responder como realmente pensás.</strong>
+      </p>
+
+      <p style={{ ...S.body, color: "#999", fontSize: 14 }}>
+        <strong style={{ color: "#666" }}>Tiempo estimado:</strong> 20–25 minutos.
+      </p>
+
+      <button
+        style={{ ...S.btn, marginTop: 24, marginBottom: 48 }}
+        onClick={onStart}
+        onMouseEnter={e => e.target.style.opacity = 0.85}
+        onMouseLeave={e => e.target.style.opacity = 1}
+      >
+        Comenzar
+      </button>
+    </div>
+  );
+}
+
+// ============================================================
+// DATA SCREEN
+// ============================================================
+function DataScreen({ onSubmit, role }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [source, setSource] = useState("");
+  const [otherSource, setOtherSource] = useState("");
+
+  const isValid = name.trim() && email.trim() && phone.trim() && source && (source !== "Otro" || otherSource.trim());
+
+  const handleSubmit = () => {
+    if (!isValid) return;
+    onSubmit({
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      source: source === "Otro" ? `Otro: ${otherSource.trim()}` : source,
+      role
+    });
+  };
+
+  return (
+    <div style={S.container}>
+      <div style={{ textAlign: "center", marginTop: 48, marginBottom: 40 }}>
+        <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: "0.12em", color: "#1a1a1a", marginBottom: 4, textTransform: "uppercase" }}>AYAX</div>
+        <div style={{ fontSize: 11, color: "#999", letterSpacing: "0.08em", textTransform: "uppercase" }}>Personas & Cultura</div>
+      </div>
+
+      <h2 style={{ ...S.h2, marginBottom: 4 }}>Tus datos</h2>
+      <p style={{ fontSize: 14, color: "#888", marginBottom: 28 }}>Completá la siguiente información antes de comenzar.</p>
+
+      <div style={{ marginBottom: 8 }}>
+        <label style={S.label}>Puesto al que aplicás</label>
+        <div style={{ ...S.input, background: "#f0f0f0", color: "#666", cursor: "default" }}>{role}</div>
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <label style={S.label}>Nombre completo</label>
+        <input
+          type="text"
+          style={S.input}
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Nombre y apellido"
+          onFocus={e => e.target.style.borderColor = "#1a1a1a"}
+          onBlur={e => e.target.style.borderColor = "#e0e0e0"}
+        />
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <label style={S.label}>Email</label>
+        <input
+          type="email"
+          style={S.input}
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="tu@email.com"
+          onFocus={e => e.target.style.borderColor = "#1a1a1a"}
+          onBlur={e => e.target.style.borderColor = "#e0e0e0"}
+        />
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <label style={S.label}>Teléfono</label>
+        <input
+          type="tel"
+          style={S.input}
+          value={phone}
+          onChange={e => setPhone(e.target.value)}
+          placeholder="+598 99 123 456"
+          onFocus={e => e.target.style.borderColor = "#1a1a1a"}
+          onBlur={e => e.target.style.borderColor = "#e0e0e0"}
+        />
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <label style={S.label}>¿Cómo te enteraste de esta oportunidad?</label>
+        <select
+          style={S.select}
+          value={source}
+          onChange={e => setSource(e.target.value)}
+        >
+          <option value="">Seleccioná una opción</option>
+          {CONFIG.sourceOptions.map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      </div>
+
+      {source === "Otro" && (
+        <div style={{ marginBottom: 8 }}>
+          <label style={S.label}>Especificá</label>
+          <input
+            type="text"
+            style={S.input}
+            value={otherSource}
+            onChange={e => setOtherSource(e.target.value)}
+            placeholder="¿Cómo te enteraste?"
+            onFocus={e => e.target.style.borderColor = "#1a1a1a"}
+            onBlur={e => e.target.style.borderColor = "#e0e0e0"}
+          />
+        </div>
+      )}
+
+      <button
+        style={{ ...S.btn, ...(isValid ? {} : S.btnDisabled), marginBottom: 48 }}
+        onClick={handleSubmit}
+        disabled={!isValid}
+      >
+        Comenzar prueba
+      </button>
+    </div>
+  );
+}
+
+// ============================================================
+// OPTION CARD
+// ============================================================
+function OptionCard({ option, selectionState, onClick }) {
+  const [hovered, setHovered] = useState(false);
+  const isFirst = selectionState === 1;
+  const isSecond = selectionState === 2;
+  const isSelected = isFirst || isSecond;
+
+  const baseStyle = {
+    ...S.option,
+    ...(isFirst ? S.optionFirst : {}),
+    ...(isSecond ? S.optionSecond : {}),
+    ...(hovered && !isSelected ? S.optionHover : {}),
+  };
+
+  return (
+    <div
+      style={baseStyle}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {isSelected && (
+        <div style={{ ...S.badge, ...(isFirst ? S.badgeFirst : S.badgeSecond) }}>
+          {selectionState}
+        </div>
+      )}
+      <span style={{ fontWeight: 600, marginRight: 8, color: "#1a1a1a" }}>{option.letter}.</span>
+      {option.text}
+    </div>
+  );
+}
+
+// ============================================================
+// SCENARIO SCREEN
+// ============================================================
+function ScenarioScreen({ scenario, index, total, onConfirm }) {
+  const [first, setFirst] = useState(null);
+  const [second, setSecond] = useState(null);
+  const [followUpText, setFollowUpText] = useState("");
+  const startTime = useRef(Date.now());
+
+  const handleClick = (letter) => {
+    if (letter === first) {
+      setFirst(null);
+      setSecond(null);
+      return;
+    }
+    if (letter === second) {
+      setSecond(null);
+      return;
+    }
+    if (!first) {
+      setFirst(letter);
+    } else if (!second) {
+      setSecond(letter);
+    }
+  };
+
+  const getSelectionState = (letter) => {
+    if (letter === first) return 1;
+    if (letter === second) return 2;
+    return 0;
+  };
+
+  const canConfirm = first && second && (!scenario.followUp || followUpText.trim().length > 0);
+
+  const instruction = !first
+    ? "Elegí la opción que más te representa"
+    : !second
+    ? "Ahora elegí la segunda que más te representa"
+    : scenario.followUp && !followUpText.trim()
+    ? "Respondé la pregunta breve debajo"
+    : "";
+
+  const handleConfirm = () => {
+    if (!canConfirm) return;
+    const elapsed = Math.round((Date.now() - startTime.current) / 1000);
+    onConfirm({
+      scenarioId: scenario.id,
+      first,
+      second,
+      followUpResponse: scenario.followUp ? followUpText.trim() : null,
+      timeSpent: elapsed
+    });
+  };
+
+  return (
+    <div style={S.container}>
+      <div style={{ marginTop: 64, marginBottom: 32 }}>
+        <p style={{ fontSize: 12, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, fontWeight: 500 }}>
+          Escenario {index + 1}
+        </p>
+
+        <div style={S.scenarioCase}>
+          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.75, color: "#333" }}>{scenario.case}</p>
+        </div>
+
+        <p style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 20 }}>{scenario.question}</p>
+
+        {instruction && (
+          <p style={S.instruction}>{instruction}</p>
+        )}
+
+        <div>
+          {scenario.options.map(opt => (
+            <OptionCard
+              key={opt.letter}
+              option={opt}
+              selectionState={getSelectionState(opt.letter)}
+              onClick={() => handleClick(opt.letter)}
+            />
+          ))}
+        </div>
+
+        {scenario.followUp && second && (
+          <div style={S.followUp}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a", margin: 0 }}>
+              {scenario.followUp.question}
+            </p>
+            <textarea
+              style={S.textarea}
+              value={followUpText}
+              onChange={e => setFollowUpText(e.target.value)}
+              placeholder="Escribí tu respuesta..."
+              rows={3}
+            />
+          </div>
+        )}
+
+        <button
+          style={{ ...S.btn, ...(canConfirm ? {} : S.btnDisabled), marginTop: 24, marginBottom: 48 }}
+          onClick={handleConfirm}
+          disabled={!canConfirm}
+        >
+          Confirmar y continuar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CLOSE SCREEN
+// ============================================================
+function CloseScreen({ status }) {
+  if (status === "sending") {
+    return (
+      <div style={S.container}>
+        <div style={{ textAlign: "center", marginTop: 80 }}>
+          <div style={{ fontSize: 32, marginBottom: 24, animation: "fadeIn 0.5s ease infinite alternate" }}>●</div>
+          <h1 style={{ ...S.h1, textAlign: "center" }}>Enviando respuestas...</h1>
+          <p style={{ ...S.body, textAlign: "center", color: "#888" }}>Un momento, por favor.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div style={S.container}>
+        <div style={{ textAlign: "center", marginTop: 80 }}>
+          <div style={{ fontSize: 48, marginBottom: 24 }}>⚠</div>
+          <h1 style={{ ...S.h1, textAlign: "center" }}>Hubo un problema</h1>
+          <p style={{ ...S.body, textAlign: "center", maxWidth: 420, margin: "0 auto", color: "#666" }}>
+            No pudimos enviar tus respuestas. Por favor, contactá a Personas & Cultura para confirmar que tu prueba fue recibida.
+          </p>
+          <div style={S.footer}>AYAX — Personas & Cultura</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={S.container}>
+      <div style={{ textAlign: "center", marginTop: 80 }}>
+        <div style={{ fontSize: 48, marginBottom: 24 }}>✓</div>
+        <h1 style={{ ...S.h1, textAlign: "center" }}>¡Gracias!</h1>
+        <p style={{ ...S.body, textAlign: "center", maxWidth: 420, margin: "0 auto", color: "#666" }}>
+          Tus respuestas fueron enviadas correctamente. Vamos a estar revisándolas y nos comunicamos pronto.
+        </p>
+        <div style={S.footer}>AYAX — Personas & Cultura</div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MAIN APP
+// ============================================================
+function App() {
+  const [screen, setScreen] = useState("welcome");
+  const [candidateData, setCandidateData] = useState(null);
+  const [scenarioOrder, setScenarioOrder] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [responses, setResponses] = useState([]);
+  const [timerSeconds, setTimerSeconds] = useState(CONFIG.timerSeconds);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null);
+  const timerRef = useRef(null);
+
+  // Shuffle scenarios on mount
+  useEffect(() => {
+    const shuffled = [...CONFIG.scenarios]
+      .map(s => ({ ...s, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(({ sort, ...s }) => s);
+    setScenarioOrder(shuffled);
+  }, []);
+
+  // Timer logic
+  useEffect(() => {
+    if (timerRunning) {
+      timerRef.current = setInterval(() => {
+        setTimerSeconds(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [timerRunning]);
+
+  const handleStartWelcome = () => setScreen("data");
+
+  const handleDataSubmit = (data) => {
+    setCandidateData(data);
+    setScreen("scenarios");
+    setTimerRunning(true);
+  };
+
+  const handleConfirmScenario = (response) => {
+    const newResponses = [...responses, response];
+    setResponses(newResponses);
+
+    if (currentIndex < scenarioOrder.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      setTimerRunning(false);
+      const totalTime = CONFIG.timerSeconds - timerSeconds;
+      const payload = {
+        candidate: candidateData,
+        responses: newResponses,
+        totalTimeSeconds: totalTime,
+        overtime: timerSeconds < 0 ? Math.abs(timerSeconds) : 0,
+        completedAt: new Date().toISOString()
+      };
+
+      // Send to Google Sheet
+      setSubmitStatus("sending");
+      setScreen("close");
+
+      fetch(CONFIG.sheetEndpoint, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+        .then(() => {
+          setSubmitStatus("success");
+        })
+        .catch((err) => {
+          console.error("Error sending results:", err);
+          setSubmitStatus("error");
+        });
+    }
+  };
+
+  const role = CONFIG.role;
+
+  return (
+    <div style={S.app}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        ::selection { background: #1a1a1a; color: #fff; }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        input:focus, select:focus, textarea:focus {
+          border-color: #1a1a1a !important;
+        }
+      `}</style>
+
+      {screen === "scenarios" && (
+        <>
+          <Timer seconds={timerSeconds} isRunning={timerRunning} />
+          <div style={S.progress}>
+            {currentIndex + 1} / {scenarioOrder.length}
+          </div>
+        </>
+      )}
+
+      {screen === "welcome" && (
+        <WelcomeScreen onStart={handleStartWelcome} role={role} />
+      )}
+      {screen === "data" && (
+        <DataScreen onSubmit={handleDataSubmit} role={role} />
+      )}
+      {screen === "scenarios" && scenarioOrder.length > 0 && (
+        <ScenarioScreen
+          key={scenarioOrder[currentIndex].id}
+          scenario={scenarioOrder[currentIndex]}
+          index={currentIndex}
+          total={scenarioOrder.length}
+          onConfirm={handleConfirmScenario}
+        />
+      )}
+      {screen === "close" && (
+        <CloseScreen status={submitStatus} />
+      )}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(App));
+    </script>
+</body>
+</html>
