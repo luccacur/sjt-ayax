@@ -36,7 +36,7 @@ const { useState, useEffect, useRef, useCallback } = React;
 const CONFIG = {
   role: "Analista de Marketing",
   company: "AYAX",
-  timerSeconds: 45 * 60,
+  timerSeconds: 60 * 60,
   sheetEndpoint: "https://script.google.com/macros/s/AKfycbwCfQTZ5V8IzynpFha5CGUl9ahFeoG7vSlRy2ixzqXNK4H1IlY4ZtmUHLhQdCiRKaG4yQ/exec",
   sourceOptions: ["LinkedIn", "Buscojobs", "Personal AYAX", "Otro"],
   scenarios: [
@@ -598,7 +598,7 @@ function WelcomeScreen({ onStart, role }) {
       </p>
 
       <p style={{ ...S.body, color: "#999", fontSize: 14 }}>
-        <strong style={{ color: "#666" }}>Tiempo estimado:</strong> 35–45 minutos.
+        <strong style={{ color: "#666" }}>Tiempo estimado:</strong> 45–60 minutos.
       </p>
 
       <button
