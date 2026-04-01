@@ -931,6 +931,7 @@ function App() {
   const [timerRunning, setTimerRunning] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const timerRef = useRef(null);
+  const timerStartRef = useRef(null);
 
   // Shuffle scenarios on mount
   useEffect(() => {
@@ -941,11 +942,13 @@ function App() {
     setScenarioOrder(shuffled);
   }, []);
 
-  // Timer logic
+  // Timer logic — uses Date.now() so background tabs don't drift
   useEffect(() => {
     if (timerRunning) {
+      if (!timerStartRef.current) timerStartRef.current = Date.now();
       timerRef.current = setInterval(() => {
-        setTimerSeconds(prev => prev - 1);
+        const elapsed = Math.round((Date.now() - timerStartRef.current) / 1000);
+        setTimerSeconds(CONFIG.timerSeconds - elapsed);
       }, 1000);
     }
     return () => clearInterval(timerRef.current);
@@ -968,12 +971,12 @@ function App() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       setTimerRunning(false);
-      const totalTime = CONFIG.timerSeconds - timerSeconds;
+      const totalTime = Math.round((Date.now() - timerStartRef.current) / 1000);
       const payload = {
         candidate: candidateData,
         responses: newResponses,
         totalTimeSeconds: totalTime,
-        overtime: timerSeconds < 0 ? Math.abs(timerSeconds) : 0,
+        overtime: totalTime > CONFIG.timerSeconds ? totalTime - CONFIG.timerSeconds : 0,
         completedAt: new Date().toISOString()
       };
 
