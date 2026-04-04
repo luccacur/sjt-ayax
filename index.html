@@ -960,6 +960,17 @@ function App() {
     setCandidateData(data);
     setScreen("scenarios");
     setTimerRunning(true);
+    // Register that the candidate started
+    try {
+      fetch(CONFIG.sheetEndpoint, {
+        method: "POST",
+        body: JSON.stringify({
+          type: "started",
+          candidate: data,
+          startedAt: new Date().toISOString()
+        })
+      });
+    } catch (e) { /* silent - don't block the test */ }
   };
 
   const handleConfirmScenario = (response) => {
