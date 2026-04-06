@@ -622,8 +622,9 @@ function DataScreen({ onSubmit, role }) {
   const [phone, setPhone] = useState("");
   const [source, setSource] = useState("");
   const [otherSource, setOtherSource] = useState("");
+  const [salary, setSalary] = useState("");
 
-  const isValid = name.trim() && email.trim() && phone.trim() && source && (source !== "Otro" || otherSource.trim());
+  const isValid = name.trim() && email.trim() && phone.trim() && source && (source !== "Otro" || otherSource.trim()) && salary.trim();
 
   const handleSubmit = () => {
     if (!isValid) return;
@@ -632,6 +633,7 @@ function DataScreen({ onSubmit, role }) {
       email: email.trim(),
       phone: phone.trim(),
       source: source === "Otro" ? `Otro: ${otherSource.trim()}` : source,
+      salary: salary.trim(),
       role
     });
   };
@@ -718,6 +720,19 @@ function DataScreen({ onSubmit, role }) {
           />
         </div>
       )}
+
+      <div style={{ marginBottom: 8 }}>
+        <label style={S.label}>¿Cuál es tu expectativa salarial para este rol?</label>
+        <input
+          type="text"
+          style={S.input}
+          value={salary}
+          onChange={e => setSalary(e.target.value)}
+          placeholder="Ej: $XX.XXX - $XX.XXX mensuales"
+          onFocus={e => e.target.style.borderColor = "#1a1a1a"}
+          onBlur={e => e.target.style.borderColor = "#e0e0e0"}
+        />
+      </div>
 
       <button
         style={{ ...S.btn, ...(isValid ? {} : S.btnDisabled), marginBottom: 48 }}
