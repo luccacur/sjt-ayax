@@ -623,8 +623,9 @@ function DataScreen({ onSubmit, role }) {
   const [source, setSource] = useState("");
   const [otherSource, setOtherSource] = useState("");
   const [salary, setSalary] = useState("");
+  const [english, setEnglish] = useState("");
 
-  const isValid = name.trim() && email.trim() && phone.trim() && source && (source !== "Otro" || otherSource.trim()) && salary.trim();
+  const isValid = name.trim() && email.trim() && phone.trim() && source && (source !== "Otro" || otherSource.trim()) && english && salary.trim();
 
   const handleSubmit = () => {
     if (!isValid) return;
@@ -633,6 +634,7 @@ function DataScreen({ onSubmit, role }) {
       email: email.trim(),
       phone: phone.trim(),
       source: source === "Otro" ? `Otro: ${otherSource.trim()}` : source,
+      english,
       salary: salary.trim(),
       role
     });
@@ -720,6 +722,20 @@ function DataScreen({ onSubmit, role }) {
           />
         </div>
       )}
+
+      <div style={{ marginBottom: 8 }}>
+        <label style={S.label}>Nivel de inglés</label>
+        <select
+          style={S.select}
+          value={english}
+          onChange={e => setEnglish(e.target.value)}
+        >
+          <option value="">Seleccioná una opción</option>
+          <option value="Básico">Básico</option>
+          <option value="Intermedio">Intermedio</option>
+          <option value="Avanzado">Avanzado</option>
+        </select>
+      </div>
 
       <div style={{ marginBottom: 8 }}>
         <label style={S.label}>¿Cuál es tu expectativa salarial para este rol?</label>
