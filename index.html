@@ -1,33 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Prueba de Criterio Situacional — AYAX</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #ffffff; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-        ::selection { background: #1a1a1a; color: #fff; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        input:focus, select:focus, textarea:focus {
-            border-color: #1a1a1a !important;
-            outline: none;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AYAX — Evaluación</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
 </head>
 <body>
-    <div id="root"></div>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
 
 // ============================================================
 // CONFIGURATION — Scenarios loaded from JSON structure
@@ -961,11 +946,42 @@ function App() {
   const [timerSeconds, setTimerSeconds] = useState(CONFIG.timerSeconds);
   const [timerRunning, setTimerRunning] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
+  const [restored, setRestored] = useState(false);
   const timerRef = useRef(null);
   const timerStartRef = useRef(null);
 
-  // Shuffle scenarios on mount
+  // Save progress to sessionStorage
+  const saveProgress = (data) => {
+    try {
+      sessionStorage.setItem("sjt_progress", JSON.stringify(data));
+    } catch (e) { /* silent */ }
+  };
+
+  const clearProgress = () => {
+    try { sessionStorage.removeItem("sjt_progress"); } catch (e) {}
+  };
+
+  // Restore progress on mount
   useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("sjt_progress");
+      if (saved) {
+        const p = JSON.parse(saved);
+        setCandidateData(p.candidateData);
+        setScenarioOrder(p.scenarioOrder);
+        setCurrentIndex(p.currentIndex);
+        setResponses(p.responses);
+        timerStartRef.current = p.timerStart;
+        const elapsed = Math.round((Date.now() - p.timerStart) / 1000);
+        setTimerSeconds(CONFIG.timerSeconds - elapsed);
+        setScreen("scenarios");
+        setTimerRunning(true);
+        setRestored(true);
+        return;
+      }
+    } catch (e) { /* no saved progress, continue normally */ }
+
+    // No saved progress — shuffle scenarios normally
     const shuffled = [...CONFIG.scenarios]
       .map(s => ({ ...s, sort: Math.random() }))
       .sort((a, b) => a.sort - b.sort)
@@ -991,6 +1007,16 @@ function App() {
     setCandidateData(data);
     setScreen("scenarios");
     setTimerRunning(true);
+    const startTs = Date.now();
+    timerStartRef.current = startTs;
+    // Save initial progress
+    saveProgress({
+      candidateData: data,
+      scenarioOrder,
+      currentIndex: 0,
+      responses: [],
+      timerStart: startTs
+    });
     // Register that the candidate started
     try {
       fetch(CONFIG.sheetEndpoint, {
@@ -1009,10 +1035,20 @@ function App() {
     setResponses(newResponses);
 
     if (currentIndex < scenarioOrder.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      // Save progress after each scenario
+      saveProgress({
+        candidateData,
+        scenarioOrder,
+        currentIndex: nextIndex,
+        responses: newResponses,
+        timerStart: timerStartRef.current
+      });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       setTimerRunning(false);
+      clearProgress();
       const totalTime = Math.round((Date.now() - timerStartRef.current) / 1000);
       const payload = {
         candidate: candidateData,
@@ -1091,8 +1127,7 @@ function App() {
 }
 
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(React.createElement(App));
-    </script>
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
 </body>
 </html>
